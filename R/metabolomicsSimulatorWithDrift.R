@@ -2,7 +2,7 @@
 cmdstanr::check_cmdstan_toolchain(fix = TRUE, quiet = TRUE)
 cmdstanr::install_cmdstan()
 
-pak::pkg_install(c("rmcelreath/rethinking", "bayesplot", "posterior", "ggplot2", "cowplot", "here", "patchwork"))
+pak::pkg_install(c("rmcelreath/rethinking", "bayesplot", "posterior", "ggplot2", "cowplot", "here", "patchwork", "invgamma"))
 
 library(rethinking)
 library(cmdstanr)
@@ -11,6 +11,7 @@ library(cowplot)
 library(posterior)
 library(bayesplot)
 library(patchwork)
+library(invgamma)
 color_scheme_set("brightblue")
 
 n_ind = 200
@@ -26,7 +27,8 @@ beta_batch = rnorm(n_batch, sd = 1)
 
 mu = rnorm(1, 3)
 
-etasq <- abs(rnorm(2)) #rexp(n_batch,2)
+meta_eta = rinvgamal
+alphasq <- abs(rnorm(2)) #rexp(n_batch,2)
 rhosq <- abs(rnorm(2) #rexp(n_batch,1)
 deltas_tilde = rnorm(n_ind + n_pooled)
 
@@ -53,14 +55,14 @@ for(b in 1:n_batch){
   D = outer(ts, ts, function(x, y) abs(x - y))
   Ds[[b]] = D/max(D) * 5
 
-  K = rethinking::cov_GPL2(Ds[[b]], etasq[b], rhosq[b], 0.01)[[1]]
+  K = rethinking::cov_GPL2(Ds[[b]], alphasq[b], rhosq[b], 0.01)[[1]]
   data$deltas[data$batch==b] = t(chol(K)) %*% deltas_tilde[data$batch==b]
 }
 
 png("test.png", height= 1080, width = 1080)
 plot( NULL , xlim=c(0,5) , ylim=c(0,2) , xlab="Scaled time difference" , ylab="covariance" )
 for ( i in 1:n_batch )
-  curve( etasq[i]*exp(-rhosq[i]*x^2) , add=TRUE , lwd=4 , col=col.alpha(2,0.5) )
+  curve( alphasq[i]*exp(-rhosq[i]*x^2) , add=TRUE , lwd=4 , col=col.alpha(2,0.5) )
 dev.off()
 
 data = within(data, {

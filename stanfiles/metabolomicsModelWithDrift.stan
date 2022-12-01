@@ -57,7 +57,9 @@ model {
     /* Gaussian Processes for the deltas */
     pos = 1;
     for (i in 1:N_batch) {
-      K[pos:batch_size[i], pos:batch_size[i]] = add_diag(gp_exp_quad_cov(t[pos:batch_size[i]], alpha[i], rho[i]), sigma[i]);
+      K[pos:batch_size[i], pos:batch_size[i]] = add_diag(gp_exp_quad_cov(t[pos:batch_size[i]], 
+                                                                         alpha[i], rho[i]),                                             
+                                                         square(sigma[i]));
       pos = pos + batch_size[i];
     }
 
