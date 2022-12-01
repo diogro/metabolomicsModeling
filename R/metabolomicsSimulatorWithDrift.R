@@ -2,7 +2,7 @@
 cmdstanr::check_cmdstan_toolchain(fix = TRUE, quiet = TRUE)
 cmdstanr::install_cmdstan()
 
-pak::pkg_install(c("rmcelreath/rethinking", "bayesplot", "posterior", "ggplot2", "cowplot"))
+pak::pkg_install(c("rmcelreath/rethinking", "bayesplot", "posterior", "ggplot2", "cowplot", "here", "patchwork"))
 
 library(rethinking)
 library(cmdstanr)
@@ -10,23 +10,24 @@ library(ggplot2)
 library(cowplot)
 library(posterior)
 library(bayesplot)
+library(patchwork)
 color_scheme_set("brightblue")
 
-n_ind = 300
-n_pooled = 20
+n_ind = 200
+n_pooled = 50
 level_i = matrix(rnorm(n_ind))
 mean_qc = mean(level_i)
 level_qc = rnorm(n_pooled, mean_qc, sd = 0.1)
 dens(level_qc)
 abline(v = mean_qc)
 
-n_batch = 3
+n_batch = 2
 beta_batch = rnorm(n_batch, sd = 1)
 
 mu = rnorm(1, 3)
 
-etasq <- rexp(n_batch,2)
-rhosq <- rexp(n_batch,1)
+etasq <- abs(rnorm(2)) #rexp(n_batch,2)
+rhosq <- abs(rnorm(2) #rexp(n_batch,1)
 deltas_tilde = rnorm(n_ind + n_pooled)
 
 batch_id = c(sample(1:n_batch, n_pooled + n_ind, T))
@@ -56,22 +57,27 @@ for(b in 1:n_batch){
   data$deltas[data$batch==b] = t(chol(K)) %*% deltas_tilde[data$batch==b]
 }
 
+png("test.png", height= 1080, width = 1080)
 plot( NULL , xlim=c(0,5) , ylim=c(0,2) , xlab="Scaled time difference" , ylab="covariance" )
 for ( i in 1:n_batch )
   curve( etasq[i]*exp(-rhosq[i]*x^2) , add=TRUE , lwd=4 , col=col.alpha(2,0.5) )
-
+dev.off()
 
 data = within(data, {
-  y = mu + beta_batch[batch] + c(level_qc, level_i) + deltas
+  levels = c(level_qc, level_i)
+  y = mu + beta_batch[batch] + levels + deltas * 2
 })
-ggplot(data, aes(t, y, color = as.factor(QC))) +
+p = ggplot(data, aes(t, y, color = as.factor(QC))) +
   geom_point() +
   geom_point(aes(y = deltas), color  = "DarkOrange") +
   geom_line(data = dplyr::filter(data, QC == 1)) +
   facet_wrap(~batch) +
-  theme_cowplot() + theme(legend.position = "none")
+  theme_cowplot() + theme(legend.position = "none", 
+                          plot.background = element_rect(fill = "white"),
+                          panel.background = element_rect(fill = "white"))
+save_plot("test.png", p, base_height = 8)
 
-mod <- cmdstan_model("metabolomicsModelWithDrift.stan")
+mod <- cmdstan_model(here::here("stanfiles/metabolomicsModelWithDrift.stan"))
 
 # data {
 #   int<lower=1> N;                           // total number of rows in data
@@ -96,21 +102,25 @@ data_list = list(
 )
 fit <- mod$sample(
   data = data_list,
-  iter_warmup = 1,
-  iter_sampling = 1,
+  iter_warmup = 1000,
+  iter_sampling = 1000,
   seed = 123,
   chains = 4,
   parallel_chains = 4,
-  refresh = 10 # print update every 500 iters
+  refresh = 200 # print update every 500 iters
 )
 # plot posterior kernel
+batch_mean = tapply(data$y, data$batch, mean)
 fit$summary()
-mcmc_recover_hist(fit$draws("mu_0"), mu)
-mcmc_recover_hist(fit$draws("b"), beta_batch)
-mcmc_recover_hist(fit$draws("batch_means"), mu + beta_batch)
 
-mcmc_recover_intervals(fit$draws("level"), c(mean_qc, level_i))
+p = mcmc_recover_hist(fit$draws("batch_means"), batch_mean) /
+(mcmc_recover_intervals(fit$draws("eta"), etasq) + mcmc_recover_intervals(fit$draws("rho"), rhosq))
+save_plot("test.png", p, base_height = 9)
+
+p = mcmc_recover_intervals(fit$draws("level"), c(mean_qc, level_i)) /
+mcmc_recover_intervals(fit$draws("deltas"), data$deltas) 
+save_plot("test.png", p, base_height = 9)
 
 
 
-
+fit$draws("deltas")

@@ -37,3 +37,6 @@ vignettes/*.pdf
 
 # R Environment Variables
 .Renviron
+stanfiles/metabolomicsModelWithDrift
+.nfs*
+test.png
