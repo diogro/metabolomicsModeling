@@ -1,6 +1,6 @@
 # install.packages("cmdstanr", repos = c("https://mc-stan.org/r-packages/", getOption("repos")))
 cmdstanr::check_cmdstan_toolchain(fix = TRUE, quiet = TRUE)
-cmdstanr::install_cmdstan()
+cmdstanr::install_cmdstan(overwrite=FALSE)
 
 pak::pkg_install(c("rmcelreath/rethinking", "bayesplot", "posterior", "ggplot2", "cowplot"))
 

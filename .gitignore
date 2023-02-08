@@ -40,3 +40,5 @@ vignettes/*.pdf
 stanfiles/metabolomicsModelWithDrift
 .nfs*
 test.png
+stanfiles/metabolomicsModelWithDriftNoBatch
+stanfiles/metabolomicsSplinesModelWithDriftNoBatch
