@@ -12,11 +12,11 @@ library(bayesplot)
 library(splines)
 color_scheme_set("brightblue")
 
-set.seed(1234)
+set.seed(123)
 num_knots <- 5 # true number of knots
 spline_degree <- 3
 num_basis <- num_knots + spline_degree - 1
-X <- seq(from=-10, to=10, by=1)
+X <- seq(from=-10, to=10, by=0.1)
 knots <- unname(quantile(X,probs=seq(from=0, to=1, length.out = num_knots)))
 num_data <- length(X)
 a0 <- 0.2
@@ -24,7 +24,7 @@ a <- rnorm(num_basis, 0, 1)
 B_true <- t(bs(X, df=num_basis, degree=spline_degree, intercept = TRUE))
 drift <- as.vector(a0*X + a%*%B_true)
 
-n_pooled = 5
+n_pooled = 20
 n_ind = num_data - n_pooled
 
 level_i = matrix(rnorm(n_ind))
@@ -60,32 +60,43 @@ p = ggplot(data, aes(t, y, color = as.factor(QC))) +
                           panel.background = element_rect(fill = "white"))
 save_plot("test.png", p, base_height = 8)
 
-num_knots <- 20; # number of knots for fitting
+num_knots <- 11; # number of knots for fitting
 num_basis <- num_knots + spline_degree - 1
 knots <- unname(quantile(X,probs=seq(from=0, to=1, length.out = num_knots)))
 sm <- cmdstan_model(here::here("stanfiles/metabolomicsSplinesModelWithDriftNoBatch.stan"))
 
 # data {
-#   int num_data;             // number of data points
-#   int num_knots;            // num of knots
-#   vector[num_knots] knots;  // the sequence of knots
+#   int<lower=1> N;    // total number of rows in data
+#   int<lower=1> N_ids;
+#   array[N] int<lower=1, upper=N_ids> id;
+#   int N_knots;            // num of knots
+#   vector[N_knots] knots;  // the sequence of knots
 #   int spline_degree;        // the degree of spline (is equal to order - 1)
-#   real Y[num_data];
-#   real X[num_data];
+#   array[N] real Y;
+#   array[N] real X;
 # }
-data_list <- list(num_data = num_data, 
-                  num_knots = num_knots, 
+data_list <- list(N = num_data, 
+                  N_ids = n_ind + 1,
+                  id = data$ID,
+                  N_knots = num_knots, 
                   knots = knots,
                   spline_degree = 3,
-                  Y = Y, X = X)
-fit <- sm$sample(data = data_list, chains = 4, parallel_chains = 4)
+                  Y = data$y, X = X)
+fit <- sm$sample(data = data_list, chains = 4, parallel_chains = 4, adapt_delta = 0.99)
 a0_e = mean(fit$draws('a0'))
 a_e = colMeans(fit$draws('a', f = "draws_matrix"))
-colMeans(fit$draws('a', f = "draws_matrix")
+colMeans(fit$draws('a', f = "draws_matrix"))
 num_basis <- num_knots + spline_degree - 1
 B <- t(bs(X, df=num_basis, degree=spline_degree, intercept = TRUE))
 y_e = as.vector(a0_e*X + a_e%*%B)
 png("test.png")
 plot(y_e ~ X, pch = 19, col = 2)
-points(Y_true ~ X, pch = 19)
+points(drift + mu ~ X, pch = 19)
+dev.off()
+
+levels_e = colMeans(fit$draws('level', f = "draws_matrix"))
+levels = tapply(data$levels, data$ID, mean)
+
+png("test.png")
+plot(abs(levels_e - levels), pch = 19, col = 2)
 dev.off()
