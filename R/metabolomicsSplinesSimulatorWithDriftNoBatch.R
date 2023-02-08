@@ -13,18 +13,18 @@ library(splines)
 color_scheme_set("brightblue")
 
 set.seed(123)
-num_knots <- 5 # true number of knots
+num_knots <- 10 # true number of knots
 spline_degree <- 3
 num_basis <- num_knots + spline_degree - 1
-X <- seq(from=-10, to=10, by=0.1)
+X <- seq(from=-1, to=1, by=0.01)
 knots <- unname(quantile(X,probs=seq(from=0, to=1, length.out = num_knots)))
 num_data <- length(X)
-a0 <- 0.2
-a <- rnorm(num_basis, 0, 1)
+a0 <- 0.
+a <- rnorm(num_basis, 0, 2)
 B_true <- t(bs(X, df=num_basis, degree=spline_degree, intercept = TRUE))
-drift <- as.vector(a0*X + a%*%B_true)
+drift <- as.vector(a0 + a%*%B_true)
 
-n_pooled = 20
+n_pooled = 10
 n_ind = num_data - n_pooled
 
 level_i = matrix(rnorm(n_ind))
@@ -60,7 +60,7 @@ p = ggplot(data, aes(t, y, color = as.factor(QC))) +
                           panel.background = element_rect(fill = "white"))
 save_plot("test.png", p, base_height = 8)
 
-num_knots <- 11; # number of knots for fitting
+num_knots <- 20; # number of knots for fitting
 num_basis <- num_knots + spline_degree - 1
 knots <- unname(quantile(X,probs=seq(from=0, to=1, length.out = num_knots)))
 sm <- cmdstan_model(here::here("stanfiles/metabolomicsSplinesModelWithDriftNoBatch.stan"))
@@ -75,6 +75,7 @@ sm <- cmdstan_model(here::here("stanfiles/metabolomicsSplinesModelWithDriftNoBat
 #   array[N] real Y;
 #   array[N] real X;
 # }
+data = data[order(data$t),]
 data_list <- list(N = num_data, 
                   N_ids = n_ind + 1,
                   id = data$ID,
@@ -100,3 +101,20 @@ levels = tapply(data$levels, data$ID, mean)
 png("test.png")
 plot(abs(levels_e - levels), pch = 19, col = 2)
 dev.off()
+
+png("test.png")
+plot(levels_e ~ levels, pch = 19, col = 2)
+abline(0, 1)
+dev.off()
+
+p = ggplot(data, aes(t, y, color = as.factor(QC))) +
+  geom_point() +
+  geom_point(aes(y = deltas), color  = "DarkOrange") +
+  geom_line(data = dplyr::filter(data, QC == 1)) +
+  geom_point(data = data.frame(deltas = colMeans(fit$draws('deltas', f = "draws_matrix")),
+                               t = data$t), 
+  aes(y = deltas), color  = 3) +
+  theme_cowplot() + theme(legend.position = "none", 
+                          plot.background = element_rect(fill = "white"),
+                          panel.background = element_rect(fill = "white"))
+save_plot("test.png", p, base_height = 8)
