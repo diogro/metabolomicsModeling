@@ -42,3 +42,8 @@ stanfiles/metabolomicsModelWithDrift
 test.png
 stanfiles/metabolomicsModelWithDriftNoBatch
 stanfiles/metabolomicsSplinesModelWithDriftNoBatch
+Rplots.pdf
+
+output/
+data/
+stanfiles/metabolomicsSplinesModelWithDriftNoBatchRobust

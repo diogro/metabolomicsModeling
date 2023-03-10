@@ -13,7 +13,7 @@ library(splines)
 color_scheme_set("brightblue")
 
 set.seed(123)
-num_knots <- 10 # true number of knots
+num_knots <- 3 # true number of knots
 spline_degree <- 3
 num_basis <- num_knots + spline_degree - 1
 X <- seq(from=-1, to=1, by=0.01)
@@ -27,7 +27,7 @@ drift <- as.vector(a0 + a%*%B_true)
 n_pooled = 10
 n_ind = num_data - n_pooled
 
-level_i = matrix(rnorm(n_ind))
+level_i = matrix(rnorm(n_ind), sd = 1.5)
 mean_qc = mean(level_i)
 level_qc = rnorm(n_pooled, mean_qc, sd = 0.1)
 
